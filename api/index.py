@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import csv
 import os
+import re
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CSV_PATH = os.path.join(BASE_DIR, "Afghanistan_Provinces.csv")
@@ -28,6 +29,13 @@ def _load_provinces():
     return provinces
 
 
+def _norm_name(value: str) -> str:
+    value = (value or "").strip().lower()
+    value = value.replace("-", " ")
+    value = re.sub(r"\s+", " ", value)
+    return value
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -45,11 +53,12 @@ def get_provinces():
 def check_province():
     try:
         payload = request.get_json(silent=True) or {}
-        answer = str(payload.get("answer", "")).strip().title()
+        answer_raw = str(payload.get("answer", ""))
+        answer_norm = _norm_name(answer_raw)
 
         provinces = _load_provinces()
         for p in provinces:
-            if p["state"] == answer:
+            if _norm_name(p["state"]) == answer_norm:
                 return jsonify({"correct": True, "x": p["x"], "y": p["y"], "name": p["state"]})
 
         return jsonify({"correct": False})
